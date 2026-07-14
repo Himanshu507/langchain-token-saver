@@ -112,3 +112,9 @@ def preserves_protected_fragments(original: Iterable[Any], transformed_text: str
         for fragment in protected_fragments(content)
     ]
     return all(fragment in transformed_text for fragment in fragments)
+
+
+def preserves_critical_facts(facts: Iterable[str], transformed_text: str) -> bool:
+    """Verify an explicitly identified critical-fact ledger survives verbatim."""
+
+    return all(fact and fact in transformed_text for fact in facts)

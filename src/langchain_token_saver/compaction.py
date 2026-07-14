@@ -12,7 +12,13 @@ from .messages import (
     message_role,
     replace_message_content,
 )
-from .safety import is_rewrite_safe_text, is_rewrite_safe_tool_output, protocol_signature
+from .safety import (
+    is_rewrite_safe_text,
+    is_rewrite_safe_tool_output,
+    preserves_critical_facts,
+    preserves_protected_fragments,
+    protocol_signature,
+)
 from .tokenization import estimate_messages_tokens
 from .types import CompactionConfig, OptimizationConfig, OptimizationPlan
 
@@ -161,6 +167,16 @@ def _largest_safe_run(messages: Sequence[Any], cutoff: int) -> list[int]:
     return max(runs, key=lambda run: estimate_messages_tokens(messages[index] for index in run))
 
 
+def _lossless_fact_ledger(messages: Sequence[Any]) -> Sequence[str]:
+    """The safe default: every unique original text is a critical fact."""
+
+    return tuple(
+        dict.fromkeys(
+            content for message in messages if (content := message_content(message)) is not None
+        )
+    )
+
+
 def build_optimization_plan(
     messages: Sequence[Any],
     config: OptimizationConfig,
@@ -202,6 +218,17 @@ def build_optimization_plan(
     replacement_text = message_content(replacement)
     if not replacement_text or "UNTRUSTED HISTORICAL CONTEXT" not in replacement_text:
         return _noop_plan(original, before, "unsafe_compaction_result")
+    try:
+        fact_ledger = settings.critical_fact_ledger or _lossless_fact_ledger
+        facts = tuple(fact_ledger(candidates))
+    except Exception as exc:
+        return _noop_plan(original, before, f"critical_fact_extraction_failed:{type(exc).__name__}")
+    if not all(isinstance(fact, str) for fact in facts):
+        return _noop_plan(original, before, "invalid_critical_fact_contract")
+    if not preserves_critical_facts(facts, replacement_text):
+        return _noop_plan(original, before, "critical_fact_invariant_failed")
+    if not preserves_protected_fragments(candidates, replacement_text):
+        return _noop_plan(original, before, "protected_fragment_invariant_failed")
 
     first = candidate_indexes[0]
     candidate_set = set(candidate_indexes)

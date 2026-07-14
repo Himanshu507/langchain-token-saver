@@ -1,6 +1,12 @@
 """Safe, measurable token optimization for LangChain chat models."""
 
-from .benchmark import BenchmarkResult, BenchmarkSummary, BenchmarkTrace, run_benchmark
+from .benchmark import (
+    BenchmarkResult,
+    BenchmarkSummary,
+    BenchmarkTrace,
+    load_benchmark_traces,
+    run_benchmark,
+)
 from .capabilities import (
     CAPABILITY_MATRIX,
     Provider,
@@ -46,5 +52,6 @@ __all__ = [
     "build_optimization_plan",
     "capabilities_for",
     "extract_usage",
+    "load_benchmark_traces",
     "run_benchmark",
 ]

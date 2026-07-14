@@ -95,6 +95,8 @@ class TokenSavingChatWrapper(Runnable[Any, Any]):
     def _prepare(self, input: Any, kwargs: Mapping[str, Any]) -> tuple[Any, OptimizationPlan]:
         plan = self._plan(input, kwargs)
         emit_compaction_decision(self.event_handler, plan, dry_run=self.config.compaction.dry_run)
+        if not plan.compacted and plan.reason != "non_message_input":
+            emit_fallback(self.event_handler, plan.reason)
         if not is_message_sequence(input):
             return input, plan
         messages: Sequence[Any] = plan.messages
@@ -129,6 +131,13 @@ class TokenSavingChatWrapper(Runnable[Any, Any]):
             return method(input, **kwargs)
         return method(input, config=config, **kwargs)
 
+    @staticmethod
+    def _batch_configs(config: Any, size: int) -> list[Any]:
+        configs = config if isinstance(config, list) else [config] * size
+        if len(configs) != size:
+            raise ValueError("config must be one config or a list matching inputs")
+        return configs
+
     def _record(self, plan: OptimizationPlan, response: Any) -> TokenSavingsReport:
         optimized = extract_usage(response)
         baseline = TokenUsage(
@@ -153,6 +162,9 @@ class TokenSavingChatWrapper(Runnable[Any, Any]):
             compaction_usage=compaction_usage,
             predicted_net_savings_tokens=plan.predicted_net_savings_tokens,
             net_input_savings_tokens=net_input,
+            net_input_savings_source=TokenUsageSource.ESTIMATED,
+            net_output_savings_tokens=None,
+            net_total_savings_tokens=None,
             plan_reason=plan.reason,
             terse_requested=self.config.terse,
         )
@@ -174,10 +186,7 @@ class TokenSavingChatWrapper(Runnable[Any, Any]):
                 self._call, self.base_model.invoke, prepared, config, kwargs
             )
         else:
-            if config is None:
-                response = await method(prepared, **kwargs)
-            else:
-                response = await method(prepared, config=config, **kwargs)
+            response = await self._call(method, prepared, config, kwargs)
         self._record(plan, response)
         return response
 
@@ -200,11 +209,7 @@ class TokenSavingChatWrapper(Runnable[Any, Any]):
                 last_chunk = chunk
                 yield chunk
         else:
-            stream = (
-                method(prepared, **kwargs)
-                if config is None
-                else method(prepared, config=config, **kwargs)
-            )
+            stream = self._call(method, prepared, config, kwargs)
             async for chunk in stream:
                 last_chunk = chunk
                 yield chunk
@@ -219,9 +224,7 @@ class TokenSavingChatWrapper(Runnable[Any, Any]):
         return_exceptions: bool = False,
         **kwargs: Any,
     ) -> list[Any]:
-        configs = config if isinstance(config, list) else [config] * len(inputs)
-        if len(configs) != len(inputs):
-            raise ValueError("config must be one config or a list matching inputs")
+        configs = self._batch_configs(config, len(inputs))
         results: list[Any] = []
         for item, item_config in zip(inputs, configs, strict=True):
             try:
@@ -240,9 +243,7 @@ class TokenSavingChatWrapper(Runnable[Any, Any]):
         return_exceptions: bool = False,
         **kwargs: Any,
     ) -> list[Any]:
-        configs = config if isinstance(config, list) else [config] * len(inputs)
-        if len(configs) != len(inputs):
-            raise ValueError("config must be one config or a list matching inputs")
+        configs = self._batch_configs(config, len(inputs))
         coroutines = [
             self.ainvoke(item, config=item_config, **kwargs)
             for item, item_config in zip(inputs, configs, strict=True)
@@ -267,7 +268,11 @@ class TokenSavingChatWrapper(Runnable[Any, Any]):
         )
 
     def bind(self, *args: Any, **kwargs: Any) -> "TokenSavingChatWrapper":
-        return self._clone(self.base_model.bind(*args, **kwargs))
+        guarded = self._guarded_output or any(
+            key in kwargs
+            for key in ("tools", "tool_choice", "response_format", "structured_output")
+        )
+        return self._clone(self.base_model.bind(*args, **kwargs), guarded_output=guarded)
 
     def with_config(self, *args: Any, **kwargs: Any) -> "TokenSavingChatWrapper":
         return self._clone(self.base_model.with_config(*args, **kwargs))

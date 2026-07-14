@@ -8,6 +8,7 @@ import sys
 from typing import Any, Callable, Sequence
 
 from .compaction import build_optimization_plan
+from .messages import get_value, message_content, message_role
 from .types import CompactionConfig, OptimizationConfig
 
 
@@ -30,6 +31,12 @@ def _parser() -> argparse.ArgumentParser:
     dry_run.add_argument("--preserve-recent", type=int, default=4)
     dry_run.add_argument("--min-net-savings", type=int, default=128)
 
+    apply = subparsers.add_parser("apply", help="apply a safe compaction plan to JSON messages")
+    apply.add_argument("--messages-json", required=True, type=_messages)
+    apply.add_argument("--threshold-tokens", type=int, default=4_000)
+    apply.add_argument("--preserve-recent", type=int, default=4)
+    apply.add_argument("--min-net-savings", type=int, default=128)
+
     compare = subparsers.add_parser(
         "compare", help="compare two saved benchmark/report JSON objects"
     )
@@ -38,19 +45,39 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _compaction_config(args: argparse.Namespace, *, dry_run: bool) -> OptimizationConfig:
+    return OptimizationConfig(
+        compaction=CompactionConfig(
+            threshold_tokens=args.threshold_tokens,
+            preserve_recent_messages=args.preserve_recent,
+            min_net_savings_tokens=args.min_net_savings,
+            dry_run=dry_run,
+        )
+    )
+
+
+def _message_as_json(message: Any) -> dict[str, Any]:
+    if isinstance(message, dict):
+        return dict(message)
+    dumped = getattr(message, "model_dump", None)
+    if callable(dumped):
+        return dumped(mode="json")
+    return {
+        "type": message_role(message),
+        "content": message_content(message),
+        "additional_kwargs": dict(get_value(message, "additional_kwargs", {}) or {}),
+    }
+
+
 def main(argv: Sequence[str] | None = None, *, output: Callable[[str], None] = print) -> int:
     args = _parser().parse_args(argv)
-    if args.command == "dry-run":
-        config = OptimizationConfig(
-            compaction=CompactionConfig(
-                threshold_tokens=args.threshold_tokens,
-                preserve_recent_messages=args.preserve_recent,
-                min_net_savings_tokens=args.min_net_savings,
-                dry_run=True,
-            )
-        )
+    if args.command in {"dry-run", "apply"}:
+        config = _compaction_config(args, dry_run=args.command == "dry-run")
         plan = build_optimization_plan(args.messages_json, config)
-        output(json.dumps(plan.as_dict(), sort_keys=True))
+        payload = plan.as_dict()
+        if args.command == "apply":
+            payload["messages"] = [_message_as_json(message) for message in plan.messages]
+        output(json.dumps(payload, sort_keys=True))
         return 0
 
     try:

@@ -60,6 +60,7 @@ class CompactionConfig:
     min_net_savings_tokens: int = 128
     dry_run: bool = False
     compact_tool_outputs: bool = False
+    critical_fact_ledger: Callable[[Sequence[Any]], Sequence[str]] | None = None
 
     def __post_init__(self) -> None:
         if self.threshold_tokens < 1:
@@ -115,8 +116,10 @@ class TokenSavingsReport:
 
     The baseline is normally a local estimate of the original prompt because
     sending the baseline merely to measure it would itself consume tokens.
-    Consequently ``net_input_savings_tokens`` is the only net-saving claim made
-    by the wrapper unless an application supplies its own baseline run.
+    The wrapper's input comparison always includes an explicit provenance: its
+    baseline is ordinarily estimated, while a benchmark can produce a paired
+    provider-to-provider comparison. Completion and total savings are unknown
+    for one wrapper call because there is no baseline completion to compare.
     """
 
     baseline_usage: TokenUsage
@@ -124,6 +127,9 @@ class TokenSavingsReport:
     compaction_usage: TokenUsage
     predicted_net_savings_tokens: int
     net_input_savings_tokens: int | None
+    net_input_savings_source: TokenUsageSource
+    net_output_savings_tokens: int | None
+    net_total_savings_tokens: int | None
     plan_reason: str
     terse_requested: bool
 
@@ -134,6 +140,9 @@ class TokenSavingsReport:
             "compaction_usage": self.compaction_usage.as_dict(),
             "predicted_net_savings_tokens": self.predicted_net_savings_tokens,
             "net_input_savings_tokens": self.net_input_savings_tokens,
+            "net_input_savings_source": self.net_input_savings_source.value,
+            "net_output_savings_tokens": self.net_output_savings_tokens,
+            "net_total_savings_tokens": self.net_total_savings_tokens,
             "plan_reason": self.plan_reason,
             "terse_requested": self.terse_requested,
         }
