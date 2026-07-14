@@ -342,6 +342,36 @@ Add safety tests for:
 
 ## 12. Recommended Architecture
 
+### In-depth runtime and data flow
+
+```mermaid
+flowchart TD
+    A[Application sends chat messages] --> B[TokenSavingChatWrapper]
+    B --> C[Token estimator]
+    C --> D[Optimization plan]
+    D --> E{Threshold reached?}
+    E -->|No| F[Original messages]
+    E -->|Yes| G[Safety gate]
+    G -->|System, tool, JSON, code, URL, or ID| F
+    G -->|Eligible older plain text| H[Context compaction strategy]
+    H --> I{Critical facts, protected fragments, ordering, and net savings valid?}
+    I -->|No or strategy failure| F
+    I -->|Yes| J[Compacted untrusted historical memory]
+    F --> K{Terse mode safe?}
+    J --> K
+    K -->|Unstructured opt-in request| L[Add concise response preference]
+    K -->|Tool or structured output request| M[Preserve message surface unchanged]
+    L --> N[Underlying provider model]
+    M --> N
+    N --> O[Provider response or stream]
+    O --> P[Extract provider usage or local estimate]
+    P --> Q[TokenSavingsReport]
+    Q --> R[Stable observability events]
+    R --> S[Logs, metrics, dry-run output, and benchmark runner]
+```
+
+The flow deliberately favors the original context whenever a safety invariant, critical-fact ledger, or break-even check cannot be satisfied.
+
 The first release should be a standalone package with the following shape:
 
 - `TokenSavingChatWrapper` or equivalent drop-in proxy around `ChatOpenAI` and `ChatAnthropic`

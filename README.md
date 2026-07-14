@@ -2,6 +2,23 @@
 
 `langchain-token-saver` is a conservative, opt-in wrapper for LangChain chat models. It measures every decision, only applies context compaction when a deterministic preflight predicts net input-token savings, and falls back to the original input when optimization cannot be proved safe.
 
+## High-level flow
+
+```mermaid
+flowchart LR
+    A[LangChain or LangGraph application] --> B[TokenSavingChatWrapper]
+    B --> C[Measure input and build optimization plan]
+    C --> D{Safe and net-positive?}
+    D -->|Yes| E[Compact eligible old context]
+    D -->|No or failure| F[Use original context]
+    E --> G[Underlying ChatOpenAI or ChatAnthropic model]
+    F --> G
+    G --> H[Response, usage report, and structured events]
+    H --> I[Application, logs, metrics, or benchmark]
+```
+
+The wrapper sits immediately before the model call: it only changes eligible old text, preserves protocol-critical content, and makes each decision observable.
+
 ## Install
 
 ```bash
