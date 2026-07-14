@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 940" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#898781"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="900" height="940" fill="#fcfcfb"/>
+
+  <text x="450" y="36" text-anchor="middle" font-size="22" font-weight="600" fill="#0b0b0b">langchain-token-saver — decision flow</text>
+  <text x="450" y="58" text-anchor="middle" font-size="13" fill="#52514e">Opt-in wrapper: only compacts context when a preflight proves it is safe and net-positive</text>
+
+  <!-- App -->
+  <rect x="300" y="80" width="300" height="64" rx="12" fill="#fcfcfb" stroke="#c3c2b7" stroke-width="1.5"/>
+  <text x="450" y="107" text-anchor="middle" font-size="14" font-weight="600" fill="#0b0b0b">Your app</text>
+  <text x="450" y="125" text-anchor="middle" font-size="12" fill="#52514e">LangChain or LangGraph</text>
+
+  <path d="M450,144 L450,176" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Wrapper -->
+  <rect x="270" y="178" width="360" height="66" rx="12" fill="#2a78d6"/>
+  <text x="450" y="206" text-anchor="middle" font-size="15" font-weight="700" fill="#ffffff">TokenSavingChatWrapper</text>
+  <text x="450" y="225" text-anchor="middle" font-size="12" fill="#e6f0fc">sits immediately before the model call</text>
+
+  <path d="M450,244 L450,276" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Measure -->
+  <rect x="260" y="278" width="380" height="64" rx="12" fill="#b7d3f6" stroke="#2a78d6" stroke-width="1.5"/>
+  <text x="450" y="305" text-anchor="middle" font-size="14" font-weight="600" fill="#0b0b0b">Measure input</text>
+  <text x="450" y="323" text-anchor="middle" font-size="12" fill="#0b0b0b">build a deterministic optimization plan</text>
+
+  <path d="M450,342 L450,372" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Diamond decision -->
+  <polygon points="450,374 610,454 450,534 290,454" fill="#eda100" stroke="#0b0b0b" stroke-opacity="0.1" stroke-width="1"/>
+  <text x="450" y="448" text-anchor="middle" font-size="13" font-weight="700" fill="#0b0b0b">Safe &amp;</text>
+  <text x="450" y="465" text-anchor="middle" font-size="13" font-weight="700" fill="#0b0b0b">net-positive?</text>
+
+  <!-- Yes branch -->
+  <path d="M290,454 C180,454 170,480 170,530" stroke="#898781" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="205" y="490" font-size="12" font-weight="600" fill="#008300">yes</text>
+
+  <!-- No branch -->
+  <path d="M610,454 C720,454 730,480 730,530" stroke="#898781" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <text x="675" y="490" font-size="12" font-weight="600" fill="#52514e">no / fallback</text>
+
+  <!-- Compact box -->
+  <rect x="20" y="532" width="300" height="72" rx="12" fill="#008300"/>
+  <text x="170" y="562" text-anchor="middle" font-size="14" font-weight="700" fill="#ffffff">Compact eligible context</text>
+  <text x="170" y="581" text-anchor="middle" font-size="12" fill="#d9f2d9">dedupe old text, label as untrusted data</text>
+
+  <!-- Original box -->
+  <rect x="580" y="532" width="300" height="72" rx="12" fill="#fcfcfb" stroke="#c3c2b7" stroke-width="1.5"/>
+  <text x="730" y="562" text-anchor="middle" font-size="14" font-weight="600" fill="#0b0b0b">Use original context</text>
+  <text x="730" y="581" text-anchor="middle" font-size="12" fill="#52514e">unchanged, nothing risked</text>
+
+  <!-- Converge to model -->
+  <path d="M170,604 C170,660 320,684 400,690" stroke="#898781" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+  <path d="M730,604 C730,660 580,684 500,690" stroke="#898781" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+  <!-- Model -->
+  <rect x="250" y="692" width="400" height="70" rx="12" fill="#b7d3f6" stroke="#2a78d6" stroke-width="1.5"/>
+  <text x="450" y="720" text-anchor="middle" font-size="14" font-weight="600" fill="#0b0b0b">Underlying model</text>
+  <text x="450" y="738" text-anchor="middle" font-size="12" fill="#0b0b0b">ChatOpenAI / ChatAnthropic (unchanged interface)</text>
+
+  <path d="M450,762 L450,794" stroke="#898781" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- Output -->
+  <rect x="180" y="796" width="540" height="80" rx="12" fill="#fcfcfb" stroke="#c3c2b7" stroke-width="1.5"/>
+  <text x="450" y="826" text-anchor="middle" font-size="14" font-weight="600" fill="#0b0b0b">Response, usage report, structured events</text>
+  <text x="450" y="846" text-anchor="middle" font-size="12" fill="#52514e">provider usage vs. estimates, savings, JSON events</text>
+  <text x="450" y="864" text-anchor="middle" font-size="12" fill="#52514e">→ your app, logs, metrics, benchmarks</text>
+</svg>
